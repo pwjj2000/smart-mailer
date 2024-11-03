@@ -83,7 +83,6 @@ if __name__ == "__main__":
         prev_date, prev_total_count = history[0], int(history[1])
 
         total_count = prev_total_count if curr_date == prev_date else 0
-        print(prev_date)
 
         with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as s:
             s.starttls()
@@ -92,6 +91,7 @@ if __name__ == "__main__":
             for index, row in maildata_df.iterrows():
                 # If exceeded Gmail sending limits for the day, stop
                 if total_count >= 500:
+                    print('Email sending limit reached for the day. Please try again tomorrow')
                     break
                 
                 # Sleeps for 1h after every 20 emails are sent. For rate limiting
