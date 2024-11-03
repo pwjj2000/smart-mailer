@@ -1,3 +1,7 @@
-Subject: XXXXX
-Body:
-YYYYY
+Subject: Test
+
+<html>
+<body>
+Hello #name# from #department#! 
+</body>
+</html>
