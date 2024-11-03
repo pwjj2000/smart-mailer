@@ -1,7 +1,7 @@
 Subject: Test
 
 <html>
-<body>
-Hello #name# from #department#! 
-</body>
+    <body>
+        Hello #name# from #department#! Visit: 34.87.110.120/pixel
+    </body>
 </html>
