@@ -1,12 +1,14 @@
 import sys, os, re
 import numpy as np
 import pandas as pd
+import datetime
 import smtplib
 import time
 from tabulate import tabulate
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
+CURR_DIR = os.path.dirname(os.path.realpath(__file__))
 
 SENDER_EMAIL = '' #Add email
 SENDER_PASSWORD = '' #Add password
@@ -20,8 +22,7 @@ EMAIL_REGEX = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
 # Setup required information/data.
 def setup(dept):
     # Load maildata.csv and select data from selected department only
-    curr_dir = os.path.dirname(os.path.realpath(__file__))
-    csv_filename = os.path.join(curr_dir, 'maildata.csv')
+    csv_filename = os.path.join(CURR_DIR, 'maildata.csv')
     maildata_df = pd.read_csv(csv_filename)
     
     # Counter that keeps track of emails sent for each department
@@ -40,7 +41,7 @@ def setup(dept):
             exit()
 
     # Load email.txt
-    txt_filename = os.path.join(curr_dir, 'email.txt')
+    txt_filename = os.path.join(CURR_DIR, 'email.txt')
     with open(txt_filename, 'r') as f:
         email_contents = f.readlines()
         
@@ -74,17 +75,40 @@ if __name__ == "__main__":
     dept = sys.argv[1]
     maildata_df, email_contents, count = setup(dept)
 
-    with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as s:
-        s.starttls()
-        s.login(SENDER_EMAIL, SENDER_PASSWORD)
-        # Iterate over each row that we need to send email to
-        for _, row in maildata_df.iterrows():
-            # Parse information from row
-            email, name, department = row['EMAIL'], row['NAME'], row['DEPARTMENT']
-            subject, body = prepare_email(email_contents, email, name, department)
-            send_email(s, subject, body, email)
-            count[department] += 1
-            time.sleep(DELAY)
+    curr_date = datetime.datetime.now().strftime("%x")
+    
+    history_path = os.path.join(CURR_DIR, 'history.txt')
+    with open(history_path, 'r+') as f:
+        history = f.read().split()
+        prev_date, prev_total_count = history[0], int(history[1])
+
+        total_count = prev_total_count if curr_date == prev_date else 0
+        print(prev_date)
+
+        with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as s:
+            s.starttls()
+            s.login(SENDER_EMAIL, SENDER_PASSWORD)
+            # Iterate over each row that we need to send email to
+            for index, row in maildata_df.iterrows():
+                # If exceeded Gmail sending limits for the day, stop
+                if total_count >= 500:
+                    break
+                
+                # Sleeps for 1h after every 20 emails are sent. For rate limiting
+                if index > 0 and index % 20 == 0:
+                    time.sleep(3600)
+
+                # Parse information from row
+                email, name, department = row['EMAIL'], row['NAME'], row['DEPARTMENT']
+                subject, body = prepare_email(email_contents, email, name, department)
+                send_email(s, subject, body, email)
+                count[department] += 1
+                total_count += 1
+                time.sleep(DELAY)
+        
+        f.seek(0)
+        f.write(curr_date + ' ' + str(total_count))
+        f.truncate()
 
     table = tabulate(count.items(), headers=['Department', 'Count'])
 
