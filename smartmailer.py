@@ -1,4 +1,4 @@
-import sys, os
+import sys, os, re
 import numpy as np
 import pandas as pd
 import smtplib
@@ -14,7 +14,7 @@ SMTP_PORT = 587
 BODY_PLACEHOLDER = '#name#'
 DEPARTMENT_PLACEHOLDER = '#department#'
 DELAY = 1
-    
+EMAIL_REGEX = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
 
 # Setup required information/data.
 def setup(dept):
@@ -26,12 +26,24 @@ def setup(dept):
         maildata_df = maildata_df[maildata_df['DEPARTMENT'] == dept]
     maildata_df.reset_index()
 
+    # Check email addresses' validity
+    for _, row in maildata_df.iterrows():
+        # Parse information from row
+        email = row['EMAIL']
+        if not is_valid_email(email):
+            print(f'{email} is not a valid email. Edit the csv file and try again.')
+            exit()
+
     # Load email.txt
     txt_filename = os.path.join(curr_dir, 'email.txt')
     with open(txt_filename, 'r') as f:
         email_contents = f.readlines()
         
     return maildata_df, email_contents
+
+# Check if email address is valid or not
+def is_valid_email(email):
+    return re.match(EMAIL_REGEX, email)
 
 # Prepare email contents based on subject and body information from mail.txt
 def prepare_email(email_contents, email, name, department):
@@ -43,7 +55,7 @@ def prepare_email(email_contents, email, name, department):
     return subject, body
 
 # Establish SMTP connection and send email
-def send_email(subject, body, receiver):
+def send_email(s, subject, body, receiver):
     msg = MIMEMultipart()
     msg['Subject'] = subject
     msg['From'] = SENDER_EMAIL
@@ -65,8 +77,5 @@ if __name__ == "__main__":
             # Parse information from row
             email, name, department = row['EMAIL'], row['NAME'], row['DEPARTMENT']
             subject, body = prepare_email(email_contents, email, name, department)
-            send_email(subject, body, email)
+            send_email(s, subject, body, email)
             time.sleep(DELAY)
-        
-
-    
